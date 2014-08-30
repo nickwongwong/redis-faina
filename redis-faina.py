@@ -45,7 +45,7 @@ class StatCounter(object):
         self.last_ts = ts
 
     def _record_command(self, entry):
-        self.commands[entry['command']] += 1
+        self.commands[entry['command'].upper()] += 1
 
     def _record_key(self, key):
         self.keys[key] += 1
@@ -88,7 +88,7 @@ class StatCounter(object):
     def _heaviest_commands(self, times):
         times_by_command = defaultdict(int)
         for time, entry in times:
-            times_by_command[entry['command']] += time
+            times_by_command[entry['command'].upper()] += time
         return self._top_n(times_by_command)
 
     def _slowest_commands(self, times, n=8):
