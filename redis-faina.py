@@ -102,7 +102,7 @@ class StatCounter(object):
         total_time = (self.last_ts - self.start_ts) / (1000*1000) if self.last_ts and self.start_ts else 0
         return (
             ("Lines Processed", self.line_count),
-            ("Commands/Sec", '%.2f' % (self.line_count / total_time) if total_time else 0)
+            ("Commands/Sec", '%.2f' % (self.line_count / total_time if total_time else 0))
         )
 
     def process_entry(self, entry):
