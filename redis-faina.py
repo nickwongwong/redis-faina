@@ -45,9 +45,11 @@ class StatCounter(object):
         self.last_ts = ts
 
     def _record_command(self, entry):
-        self.commands[entry['command'].upper()] += 1
+        self.commands[entry['command']] += 1
 
-    def _record_key(self, key):
+    def _record_key(self, key, entry):
+        #ts = float(entry['timestamp']) * 1000 * 1000 # microseconds
+        #self.keys[key] += ts
         self.keys[key] += 1
         parts = key.split(self.prefix_delim)
         if len(parts) > 1:
@@ -76,10 +78,10 @@ class StatCounter(object):
     def _time_stats(self, times):
         sorted_times = self._get_or_sort_list(times)
         num_times = len(sorted_times)
-        percent_50 = sorted_times[int(num_times / 2)][0] if num_times else 0
-        percent_75 = sorted_times[int(num_times * .75)][0] if num_times else 0
-        percent_90 = sorted_times[int(num_times * .90)][0] if num_times else 0
-        percent_99 = sorted_times[int(num_times * .99)][0] if num_times else 0
+        percent_50 = sorted_times[int(num_times / 2)][0]
+        percent_75 = sorted_times[int(num_times * .75)][0]
+        percent_90 = sorted_times[int(num_times * .90)][0]
+        percent_99 = sorted_times[int(num_times * .99)][0]
         return (("Median", percent_50),
                 ("75%", percent_75),
                 ("90%", percent_90),
@@ -88,10 +90,17 @@ class StatCounter(object):
     def _heaviest_commands(self, times):
         times_by_command = defaultdict(int)
         for time, entry in times:
-            times_by_command[entry['command'].upper()] += time
+            times_by_command[entry['command']] += time
         return self._top_n(times_by_command)
 
-    def _slowest_commands(self, times, n=8):
+    def _heaviest_keys(self, times):
+        times_by_command = defaultdict(int)
+        for time, entry in times:
+            if entry['key']:
+                times_by_command[entry['key']] += time
+        return self._top_n(times_by_command)
+
+    def _slowest_commands(self, times, n=30):
         sorted_times = self._get_or_sort_list(times)
         slowest_commands = reversed(sorted_times[-n:])
         printable_commands = [(str(time), self._reformat_entry(entry)) \
@@ -99,19 +108,19 @@ class StatCounter(object):
         return printable_commands
 
     def _general_stats(self):
-        total_time = (self.last_ts - self.start_ts) / (1000*1000) if self.last_ts and self.start_ts else 0
+        total_time = (self.last_ts - self.start_ts) / (1000*1000)
         return (
             ("Lines Processed", self.line_count),
-            ("Commands/Sec", '%.2f' % (self.line_count / total_time if total_time else 0))
+            ("Commands/Sec", '%.2f' % (self.line_count / total_time))
         )
 
     def process_entry(self, entry):
         self._record_duration(entry)
         self._record_command(entry)
         if entry['key']:
-            self._record_key(entry['key'])
+            self._record_key(entry['key'], entry)
 
-    def _top_n(self, stat, n=8):
+    def _top_n(self, stat, n=15):
         sorted_items = sorted(stat.iteritems(), key = lambda x: x[1], reverse = True)
         return sorted_items[:n]
 
@@ -140,6 +149,7 @@ class StatCounter(object):
         self._pretty_print(self._top_n(self.commands), 'Top Commands', percentages = True)
         self._pretty_print(self._time_stats(self.times), 'Command Time (microsecs)')
         self._pretty_print(self._heaviest_commands(self.times), 'Heaviest Commands (microsecs)')
+        self._pretty_print(self._heaviest_keys(self.times), 'Heaviest keys (microsecs)')
         self._pretty_print(self._slowest_commands(self.times), 'Slowest Calls')
 
     def process_input(self, input):
